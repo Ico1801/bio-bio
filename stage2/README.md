@@ -17,6 +17,25 @@ Do not rename or manually edit headers. Despite its .csv.gz suffix, the processe
 
 ## Run
 
+### Beginner-friendly RStudio workflow (Windows)
+
+Open RStudio, set the working directory to the extracted repository root (the folder containing `stage2/`), and run these commands **one at a time** in the R console:
+
+```r
+getwd()
+file.exists("stage2/data/GSE256068_processed_data.csv.gz")
+file.exists("stage2/data/GSE256068_series_matrix.txt.gz")
+source("stage2/scripts/00_preflight.R")
+# Inspect stage2/results/preflight_report.txt; expect 64/13 and 77/77 matched.
+source("stage2/scripts/01_differential_expression.R")
+source("stage2/scripts/02_review_results.R")
+```
+
+Do **not** run differential expression if preflight sample matching is incomplete. The review step produces `review_summary.txt` and `top20_exploratory_DEGs_for_review.csv`.
+
+### Rscript command-line workflow
+
+
 Requires R >= 4.3, packages `limma` and optional `org.Hs.eg.db`, `AnnotationDbi`, `msigdbr`. Install Bioconductor packages via BiocManager.
 
 ```r
@@ -38,6 +57,7 @@ The workflow intentionally **does not** automatically run on GitHub Actions, bec
 
 ## Planned outputs
 
+- `preflight_report.txt` (from `00_preflight.R`)
 - `selected_77_metadata.csv`, `sample_qc.csv`
 - `DEG_limma_age_sex_adjusted.csv` (primary)
 - `DEG_limma_unadjusted_sensitivity.csv`
@@ -46,6 +66,7 @@ The workflow intentionally **does not** automatically run on GitHub Actions, bec
 - `figures/PCA_selected_77.png`, `Volcano_age_sex_adjusted.png`, `Top30_heatmap.png`
 - `Pathway_camera_{Hallmark,Reactome,GO_BP,KEGG}.csv` (where available)
 - `pathway_status.txt`, `methods_and_limitations.txt`, `R_sessionInfo.txt`
+- `review_summary.txt`, `top20_exploratory_DEGs_for_review.csv` (from `02_review_results.R`)
 
 ## Analysis principles
 
