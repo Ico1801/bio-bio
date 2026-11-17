@@ -1,6 +1,7 @@
 #!/usr/bin/env Rscript
 # GSE256068 Stage 2: reproducible human TLE-HS differential expression.
-# Input is submitter-processed log-scale expression, NOT integer raw counts.
+# Input is submitter-processed transformed expression, NOT verified raw counts.
+# The log2 scale must be independently verified from GEO processing metadata.
 suppressPackageStartupMessages(library(limma))
 
 args <- commandArgs(trailingOnly=TRUE)
@@ -16,6 +17,8 @@ out <- arg("--out", "stage2/results")
 expect_case <- as.integer(arg("--expected-case", "64"))
 expect_control <- as.integer(arg("--expected-control", "13"))
 skip_pathways <- "--skip-pathways" %in% args
+log2_confirmed <- ("--log2-confirmed" %in% args) ||
+  isTRUE(getOption("gse256068.log2_confirmed", FALSE))
 dir.create(out, recursive=TRUE, showWarnings=FALSE)
 dir.create(file.path(out, "figures"), recursive=TRUE, showWarnings=FALSE)
 stopifnot(file.exists(expression_path), file.exists(series_path))
@@ -130,7 +133,8 @@ if (requireNamespace("org.Hs.eg.db", quietly=TRUE) &&
     column="SYMBOL", keytype="ENSEMBL", multiVals="first"))
 }
 tt$FDR_significant <- !is.na(tt$adj.P.Val) & tt$adj.P.Val < 0.05
-tt$FDR_and_effect <- tt$FDR_significant & abs(tt$logFC) >= log2(1.5)
+tt$FDR_and_effect <- if (log2_confirmed)
+  tt$FDR_significant & abs(tt$logFC) >= log2(1.5) else rep(NA, nrow(tt))
 write.csv(tt, file.path(out, "DEG_limma_age_sex_adjusted.csv"), row.names=FALSE)
 
 fit0 <- eBayes(lmFit(y, model.matrix(~ case, data=meta)))
@@ -178,13 +182,14 @@ write.csv(data.frame(gsm=meta$gsm, group=meta$group,
 
 png(file.path(out, "figures", "Volcano_age_sex_adjusted.png"),
     width=1300, height=1000, res=150)
-volcano_col <- ifelse(tt$FDR_and_effect, "#D55E00", "#777777")
+volcano_col <- ifelse(tt$FDR_significant, "#D55E00", "#777777")
 plot(tt$logFC, -log10(pmax(tt$adj.P.Val, 1e-300)),
      pch=16, cex=0.5, col=volcano_col,
-     xlab="log2 fold change (TLE-HS vs control)",
+     xlab=if (log2_confirmed) "log2 fold change (TLE-HS vs control)" else
+       "TLE-HS minus control (processed expression units)",
      ylab="-log10(BH adjusted p-value)",
      main="Exploratory limma differential expression")
-abline(v=c(-log2(1.5),log2(1.5)), lty=2, col="gray50")
+if (log2_confirmed) abline(v=c(-log2(1.5),log2(1.5)), lty=2, col="gray50")
 abline(h=-log10(0.05), lty=2, col="gray50")
 dev.off()
 
@@ -239,7 +244,8 @@ write.csv(data.frame(
            "n_FDR_lt_0.05","n_FDR_and_abs_logFC_ge_log2_1.5",
            "age_median_TLE_HS","age_median_control"),
   value=c(nc,nh,nrow(y),sum(tt$FDR_significant),
-          sum(tt$FDR_and_effect),median(cases),median(controls))),
+          if (log2_confirmed) sum(tt$FDR_and_effect) else NA_integer_,
+          median(cases),median(controls))),
   file.path(out,"analysis_summary.csv"), row.names=FALSE)
 writeLines(c(
   "Dataset: GEO GSE256068, submitter-processed expression matrix.",
@@ -247,6 +253,8 @@ writeLines(c(
   "Primary model: limma lmFit + eBayes, covariates age and sex.",
   "Sensitivity: unadjusted group-only limma and age-overlap subset.",
   "Processed data are noninteger and can be negative: NEVER run DESeq2 on this file.",
+  paste("Processed expression log2 scale independently confirmed:", log2_confirmed),
+  "Unless log2 is independently confirmed, limma logFC is a processed-scale difference, not validated log2 fold change.",
   "Original voom observation-level weights are not supplied: these are not exact original-study DE results.",
   "This is observational cross-sectional human tissue, not EV treatment or causal target validation.",
   "TLE-HS GEO source-name 'Temporal' is generic; original publication describes hippocampal resections.",
