@@ -31,7 +31,8 @@ read_metadata <- function(path) {
   gsm <- field("Sample_geo_accession")
   title <- field("Sample_title")
   if (length(gsm) != length(title)) stop("GEO sample metadata lengths differ")
-  meta <- data.frame(gsm=gsm, title=title, age=NA_real_,
+  description <- field("Sample_description")
+  meta <- data.frame(gsm=gsm, title=title, description=description, age=NA_real_,
                      sex=NA_character_, tissue=NA_character_,
                      disease_state=NA_character_, stringsAsFactors=FALSE)
   char_lines <- grep("^!Sample_characteristics_ch1\t", lines, value=TRUE)
@@ -71,22 +72,24 @@ if (nc != expect_case || nh != expect_control)
 if (length(unique(meta$sex)) < 2L) stop("Sex factor has only one observed level")
 
 message("Reading processed expression matrix...")
-tab <- read.csv(gzfile(expression_path), check.names=FALSE,
-                stringsAsFactors=FALSE)
-if (ncol(tab) < nrow(meta)+1L) stop("Expression matrix has too few sample columns")
-genes <- sub("\\.[0-9]+$", "", as.character(tab[[1L]]))
+tab <- read.table(gzfile(expression_path), header=TRUE, row.names=1L,
+                  check.names=FALSE, stringsAsFactors=FALSE, quote="\"",
+                  sep="", comment.char="", fill=FALSE)
+if (ncol(tab) < nrow(meta)) stop("Expression matrix has too few sample columns")
+genes <- sub("\\.[0-9]+$", "", rownames(tab))
 if (mean(grepl("^ENSG[0-9]+", genes)) < 0.8)
   stop("First expression column does not appear to contain Ensembl gene IDs")
 if (anyDuplicated(genes)) stop("Duplicate Ensembl IDs after removing version suffix")
-expr_names <- colnames(tab)[-1L]
+expr_names <- colnames(tab)
 index <- match(meta$gsm, expr_names)
 if (anyNA(index)) index <- match(meta$title, expr_names)
+if (anyNA(index)) index <- match(meta$description, expr_names)
 if (anyNA(index)) {
   missing <- paste(head(meta$title[is.na(index)], 5L), collapse=", ")
   stop("Could not align expression columns to GEO sample IDs or titles: ", missing)
 }
 if (anyDuplicated(index)) stop("Duplicate sample-to-expression mapping")
-selected <- tab[, index+1L, drop=FALSE]
+selected <- tab[, index, drop=FALSE]
 y <- as.matrix(selected)
 storage.mode(y) <- "double"
 rownames(y) <- genes
