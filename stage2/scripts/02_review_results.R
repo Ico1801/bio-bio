@@ -20,7 +20,8 @@ if (any(!is.finite(a$logFC)) || any(!is.finite(a$P.Value))) stop("Nonfinite DEG 
 if (any(a$adj.P.Val<0 | a$adj.P.Val>1,na.rm=TRUE)) stop("FDR outside 0..1")
 if (any(a$P.Value<0 | a$P.Value>1,na.rm=TRUE)) stop("P-value outside 0..1")
 a$significant <- !is.na(a$adj.P.Val) & a$adj.P.Val < 0.05
-a$significant_and_effect <- a$significant & abs(a$logFC)>=log2(1.5)
+effect_available <- "FDR_and_effect" %in% names(a) && any(!is.na(a$FDR_and_effect))
+a$significant_and_effect <- if (effect_available) a$FDR_and_effect else rep(NA, nrow(a))
 m <- merge(a[,c("ensembl_gene","logFC","adj.P.Val")],
            u[,c("ensembl_gene","logFC","adj.P.Val")],
            by="ensembl_gene",suffixes=c("_adjusted","_unadjusted"))
@@ -36,7 +37,9 @@ lines <- c(
   "STAGE 2 REVIEW — EXPLORATORY DIFFERENTIAL EXPRESSION",
   paste("Genes tested:",nrow(a)),
   paste("FDR < 0.05:",sum(a$significant)),
-  paste("FDR < 0.05 AND |log2FC| >= log2(1.5):",sum(a$significant_and_effect)),
+  paste("FDR < 0.05 AND |log2FC| >= log2(1.5):",
+        if (effect_available) sum(a$significant_and_effect) else
+          "not evaluated: log2 scale not independently confirmed"),
   paste("Adjusted vs unadjusted logFC Spearman rho:",round(corr,3)),
   paste("Adjusted vs unadjusted direction agreement:",round(direction_agreement*100,1),"%"),
   paste("Median age TLE-HS:",median(age_case),"years; controls:",median(age_ctrl),"years"),
