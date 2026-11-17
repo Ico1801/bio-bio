@@ -69,6 +69,12 @@ try {
     & $rscript "stage2/scripts/00_preflight.R"
     if ($LASTEXITCODE -ne 0) { throw "Preflight failed (exit $LASTEXITCODE)" }
     Write-Host "Review stage2\results\preflight_report.txt before interpreting any results."
+    $preflightText = Get-Content -LiteralPath (Join-Path $resultTarget "preflight_report.txt") -Raw
+    if ($preflightText -notmatch "TLE-HS selected:\s*64" -or
+        $preflightText -notmatch "Hippocampal controls selected:\s*13" -or
+        $preflightText -notmatch "Selected expression IDs matched:\s*77\s*/\s*77") {
+        throw "Preflight did not confirm 64 TLE-HS, 13 controls, and 77/77 matched sample IDs. Inspect preflight_report.txt; analysis aborted."
+    }
     if ($RunAnalysis) {
         $arguments = @("stage2/scripts/01_differential_expression.R")
         if ($SkipPathways) { $arguments += "--skip-pathways" }
