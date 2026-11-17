@@ -26,8 +26,8 @@ if (is.null(titles) || is.null(gsm)) stop("Missing sample titles/accessions in G
 if (is.null(descs) || length(descs)!=length(titles)) descs <- rep("",length(titles))
 heads <- get_lines(expression_path, 2L)
 expr_names <- scan(text=heads[1], what=character(), sep="", quiet=TRUE, quote='"')
-# First header is gene ID label, not a sample.
-expr_names <- expr_names[-1L]
+# Some matrices have a gene-ID header; others have an empty leading cell.
+if (length(expr_names)==length(gsm)+1L) expr_names <- expr_names[-1L]
 group <- ifelse(grepl("^TLE-HS_", titles, ignore.case=TRUE), "TLE-HS",
                 ifelse(grepl("^ControlHippocampus_", titles, ignore.case=TRUE),
                        "ControlHippocampus", "other"))
