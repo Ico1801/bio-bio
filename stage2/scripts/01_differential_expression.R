@@ -31,7 +31,9 @@ read_metadata <- function(path) {
   gsm <- field("Sample_geo_accession")
   title <- field("Sample_title")
   if (length(gsm) != length(title)) stop("GEO sample metadata lengths differ")
-  description <- field("Sample_description")
+  # Description may be omitted from GEO series-matrix exports.
+  description <- tryCatch(field("Sample_description"), error=function(e) rep("", length(gsm)))
+  if (length(description) != length(gsm)) description <- rep("", length(gsm))
   meta <- data.frame(gsm=gsm, title=title, description=description, age=NA_real_,
                      sex=NA_character_, tissue=NA_character_,
                      disease_state=NA_character_, stringsAsFactors=FALSE)
@@ -45,14 +47,17 @@ read_metadata <- function(path) {
       if (!grepl(":", entry, fixed=TRUE)) next
       key <- tolower(trimws(sub(":.*$", "", entry)))
       value <- trimws(sub("^[^:]*:", "", entry))
-      if (key == "age") meta$age[i] <- suppressWarnings(as.numeric(value))
-      if (key == "sex") meta$sex[i] <- value
+      if (grepl("^age($|[ (])", key)) {
+        numeric_age <- suppressWarnings(as.numeric(sub("^([0-9]+(?:\\.[0-9]+)?).*$", "\\1", value, perl=TRUE)))
+        meta$age[i] <- numeric_age
+      }
+      if (key %in% c("sex", "gender")) meta$sex[i] <- value
       if (key == "tissue") meta$tissue[i] <- value
       if (key == "disease state") meta$disease_state[i] <- value
     }
   }
-  meta$group <- ifelse(grepl("^TLE-HS_", meta$title), "TLE-HS",
-                       ifelse(grepl("^ControlHippocampus_", meta$title),
+  meta$group <- ifelse(grepl("^TLE-HS_", meta$title, ignore.case=TRUE), "TLE-HS",
+                       ifelse(grepl("^ControlHippocampus_", meta$title, ignore.case=TRUE),
                               "ControlHippocampus", NA_character_))
   meta <- meta[!is.na(meta$group), , drop=FALSE]
   meta$case <- as.integer(meta$group == "TLE-HS")
@@ -82,8 +87,14 @@ if (mean(grepl("^ENSG[0-9]+", genes)) < 0.8)
 if (anyDuplicated(genes)) stop("Duplicate Ensembl IDs after removing version suffix")
 expr_names <- colnames(tab)
 index <- match(meta$gsm, expr_names)
-if (anyNA(index)) index <- match(meta$title, expr_names)
-if (anyNA(index)) index <- match(meta$description, expr_names)
+if (anyNA(index)) {
+  missing <- which(is.na(index))
+  index[missing] <- match(meta$title[missing], expr_names)
+}
+if (anyNA(index)) {
+  missing <- which(is.na(index))
+  index[missing] <- match(meta$description[missing], expr_names)
+}
 if (anyNA(index)) {
   missing <- paste(head(meta$title[is.na(index)], 5L), collapse=", ")
   stop("Could not align expression columns to GEO sample IDs or titles: ", missing)
