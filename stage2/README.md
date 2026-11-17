@@ -13,7 +13,7 @@ Put the **original** downloaded files into `stage2/data/` (excluded from version
 - `GSE256068_processed_data.csv.gz`
 - `GSE256068_series_matrix.txt.gz`
 
-Do not rename or manually edit headers. The script requires the expression columns to match either GEO GSM accessions or GEO sample titles and stops if this is not true. Do not substitute the 'raw_data.csv.gz' file without independently validating its scale and meaning.
+Do not rename or manually edit headers. Despite its .csv.gz suffix, the processed expression file is **whitespace-delimited with quoted headers and Ensembl row names**, not comma-delimited. The script matches expression columns to GEO sample descriptions (original sequencing IDs), GSM accessions, or sample titles and stops if this is not true. Do not substitute the 'raw_data.csv.gz' file without independently validating its scale and meaning.
 
 ## Run
 
