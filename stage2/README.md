@@ -71,7 +71,7 @@ The workflow intentionally **does not** automatically run on GitHub Actions, bec
 ## Analysis principles
 
 1. Primary design: `~ case + age + sex`; contrast TLE-HS versus hippocampal control. No DESeq2 on transformed/noninteger values.
-2. Report BH-FDR < 0.05; `|log2FC| >= log2(1.5)` is an additional descriptive effect-size filter.
+2. Report BH-FDR < 0.05. **Do not interpret limma `logFC` as log2 fold change until GEO processing confirms the log2 scale.** The `|log2FC| >= log2(1.5)` effect-size filter is disabled by default; only enable it after checking the source processing protocol (`--log2-confirmed` for Rscript, or `options(gse256068.log2_confirmed=TRUE)` in RStudio before `source()`).
 3. Use unadjusted and age-overlap analyses to assess robustness; age overlap may be too limited for meaningful inference.
 4. Pathway tests use limma `camera` and measured genes as background; gene sets are externally curated and version-dependent.
 5. The disease comparison is observational. Differences in age, sample processing, cellular composition, medication, and batch may dominate observed signatures.
